@@ -8,14 +8,17 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useBaby } from '../../src/contexts/BabyContext';
 import { statsApi, feedingApi, sleepApi, diaperApi, growthApi } from '../../src/services/api';
-import { DailyStats, GrowthRecord } from '../../src/types';
-import { formatDate, getToday } from '../../src/utils/dateUtils';
+import { DailyStats, GrowthRecord, FeedingRecord, SleepRecord, DiaperRecord } from '../../src/types';
+import { formatDate, calculateAge } from '../../src/utils/dateUtils';
+import { getGrowthPercentile, getPercentileColor, getPercentileLabel } from '../../src/utils/whoGrowthData';
+import { generateBabyReport } from '../../src/services/pdfExport';
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -28,8 +31,12 @@ export default function StatsScreen() {
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [weekStats, setWeekStats] = useState<DailyStats[]>([]);
   const [growthData, setGrowthData] = useState<GrowthRecord[]>([]);
+  const [recentFeedings, setRecentFeedings] = useState<FeedingRecord[]>([]);
+  const [recentSleep, setRecentSleep] = useState<SleepRecord[]>([]);
+  const [recentDiapers, setRecentDiapers] = useState<DiaperRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'today' | 'week' | 'growth'>('today');
 
   const loadData = async () => {
@@ -65,6 +72,16 @@ export default function StatsScreen() {
       // Load growth data
       const growth = await growthApi.getByBaby(baby.baby_id);
       setGrowthData(growth);
+
+      // Load recent records for PDF export
+      const [feedings, sleep, diapers] = await Promise.all([
+        feedingApi.getByBaby(baby.baby_id).catch(() => []),
+        sleepApi.getByBaby(baby.baby_id).catch(() => []),
+        diaperApi.getByBaby(baby.baby_id).catch(() => []),
+      ]);
+      setRecentFeedings(feedings);
+      setRecentSleep(sleep);
+      setRecentDiapers(diapers);
     } catch (error) {
       console.error('Failed to load stats:', error);
     } finally {
@@ -83,6 +100,27 @@ export default function StatsScreen() {
     await loadData();
     setRefreshing(false);
   }, [baby]);
+
+  const handleExportPdf = async () => {
+    if (!baby || !stats) return;
+    
+    setExportingPdf(true);
+    try {
+      await generateBabyReport(
+        baby,
+        stats,
+        growthData,
+        recentFeedings,
+        recentSleep,
+        recentDiapers
+      );
+    } catch (error) {
+      console.error('PDF export error:', error);
+      Alert.alert('Error', 'Failed to generate PDF report. Please try again.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -105,6 +143,7 @@ export default function StatsScreen() {
     );
   }
 
+  const babyAge = calculateAge(baby.birth_date);
   const maxSleepHours = Math.max(...weekStats.map(s => s.sleep.total_hours), 1);
   const maxFeedings = Math.max(...weekStats.map(s => s.feeding.count), 1);
   const maxDiapers = Math.max(...weekStats.map(s => s.diaper.total), 1);
@@ -268,70 +307,153 @@ export default function StatsScreen() {
     </View>
   );
 
-  const renderGrowthStats = () => (
-    <View style={styles.growthContainer}>
-      {growthData.length === 0 ? (
-        <View style={styles.emptyGrowth}>
-          <Ionicons name="trending-up" size={48} color="#D1D5DB" />
-          <Text style={styles.emptyText}>No growth data recorded yet</Text>
-          <TouchableOpacity
-            style={styles.addGrowthButton}
-            onPress={() => router.push('/(tabs)/add')}
-          >
-            <Text style={styles.addGrowthButtonText}>Record Growth</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <>
-          {/* Latest Growth */}
-          {growthData[0] && (
+  const renderGrowthStats = () => {
+    const latestGrowth = growthData[0];
+    
+    // Calculate percentiles
+    let weightPercentile = null;
+    let heightPercentile = null;
+    
+    if (latestGrowth?.weight_kg) {
+      weightPercentile = getGrowthPercentile(latestGrowth.weight_kg, babyAge.months, baby.gender, 'weight');
+    }
+    
+    if (latestGrowth?.height_cm) {
+      heightPercentile = getGrowthPercentile(latestGrowth.height_cm, babyAge.months, baby.gender, 'height');
+    }
+
+    return (
+      <View style={styles.growthContainer}>
+        {growthData.length === 0 ? (
+          <View style={styles.emptyGrowth}>
+            <Ionicons name="trending-up" size={48} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No growth data recorded yet</Text>
+            <TouchableOpacity
+              style={styles.addGrowthButton}
+              onPress={() => router.push('/(tabs)/add')}
+            >
+              <Text style={styles.addGrowthButtonText}>Record Growth</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* WHO Percentile Cards */}
+            <View style={styles.percentileSection}>
+              <Text style={styles.sectionSubtitle}>WHO Growth Percentiles</Text>
+              <Text style={styles.sectionHint}>Based on {baby.gender === 'male' ? 'Boys' : baby.gender === 'female' ? 'Girls' : 'Average'} charts for {babyAge.text} old</Text>
+              
+              <View style={styles.percentileCards}>
+                {weightPercentile !== null && (
+                  <View style={styles.percentileCard}>
+                    <View style={[styles.percentileIndicator, { backgroundColor: getPercentileColor(weightPercentile) }]}>
+                      <Text style={styles.percentileNumber}>{weightPercentile}</Text>
+                      <Text style={styles.percentileSuffix}>th</Text>
+                    </View>
+                    <Text style={styles.percentileLabel}>Weight</Text>
+                    <Text style={styles.percentileValue}>{latestGrowth.weight_kg} kg</Text>
+                    <Text style={[styles.percentileStatus, { color: getPercentileColor(weightPercentile) }]}>
+                      {getPercentileLabel(weightPercentile)}
+                    </Text>
+                  </View>
+                )}
+                
+                {heightPercentile !== null && (
+                  <View style={styles.percentileCard}>
+                    <View style={[styles.percentileIndicator, { backgroundColor: getPercentileColor(heightPercentile) }]}>
+                      <Text style={styles.percentileNumber}>{heightPercentile}</Text>
+                      <Text style={styles.percentileSuffix}>th</Text>
+                    </View>
+                    <Text style={styles.percentileLabel}>Height</Text>
+                    <Text style={styles.percentileValue}>{latestGrowth.height_cm} cm</Text>
+                    <Text style={[styles.percentileStatus, { color: getPercentileColor(heightPercentile) }]}>
+                      {getPercentileLabel(heightPercentile)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Percentile Guide */}
+              <View style={styles.percentileGuide}>
+                <Text style={styles.guideTitle}>Understanding Percentiles</Text>
+                <View style={styles.guideRow}>
+                  <View style={[styles.guideDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={styles.guideText}>15th-85th: Normal range</Text>
+                </View>
+                <View style={styles.guideRow}>
+                  <View style={[styles.guideDot, { backgroundColor: '#F59E0B' }]} />
+                  <Text style={styles.guideText}>3rd-15th or 85th-97th: Monitor</Text>
+                </View>
+                <View style={styles.guideRow}>
+                  <View style={[styles.guideDot, { backgroundColor: '#EF4444' }]} />
+                  <Text style={styles.guideText}>Below 3rd or above 97th: Consult doctor</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Latest Growth */}
             <View style={styles.latestGrowth}>
               <Text style={styles.latestTitle}>Latest Measurement</Text>
-              <Text style={styles.latestDate}>{formatDate(growthData[0].date)}</Text>
+              <Text style={styles.latestDate}>{formatDate(latestGrowth.date)}</Text>
               <View style={styles.growthStats}>
-                {growthData[0].weight_kg && (
+                {latestGrowth.weight_kg && (
                   <View style={styles.growthStat}>
-                    <Text style={styles.growthValue}>{growthData[0].weight_kg}</Text>
+                    <Text style={styles.growthValue}>{latestGrowth.weight_kg}</Text>
                     <Text style={styles.growthUnit}>kg</Text>
                   </View>
                 )}
-                {growthData[0].height_cm && (
+                {latestGrowth.height_cm && (
                   <View style={styles.growthStat}>
-                    <Text style={styles.growthValue}>{growthData[0].height_cm}</Text>
+                    <Text style={styles.growthValue}>{latestGrowth.height_cm}</Text>
                     <Text style={styles.growthUnit}>cm</Text>
                   </View>
                 )}
-                {growthData[0].head_circumference_cm && (
+                {latestGrowth.head_circumference_cm && (
                   <View style={styles.growthStat}>
-                    <Text style={styles.growthValue}>{growthData[0].head_circumference_cm}</Text>
+                    <Text style={styles.growthValue}>{latestGrowth.head_circumference_cm}</Text>
                     <Text style={styles.growthUnit}>cm (head)</Text>
                   </View>
                 )}
               </View>
             </View>
-          )}
 
-          {/* Growth History */}
-          <Text style={styles.historyTitle}>History</Text>
-          {growthData.slice(0, 10).map((record) => (
-            <View key={record.growth_id} style={styles.historyItem}>
-              <Text style={styles.historyDate}>{formatDate(record.date)}</Text>
-              <View style={styles.historyValues}>
-                {record.weight_kg && <Text style={styles.historyValue}>{record.weight_kg} kg</Text>}
-                {record.height_cm && <Text style={styles.historyValue}>{record.height_cm} cm</Text>}
+            {/* Growth History */}
+            <Text style={styles.historyTitle}>History</Text>
+            {growthData.slice(0, 10).map((record) => (
+              <View key={record.growth_id} style={styles.historyItem}>
+                <Text style={styles.historyDate}>{formatDate(record.date)}</Text>
+                <View style={styles.historyValues}>
+                  {record.weight_kg && <Text style={styles.historyValue}>{record.weight_kg} kg</Text>}
+                  {record.height_cm && <Text style={styles.historyValue}>{record.height_cm} cm</Text>}
+                </View>
               </View>
-            </View>
-          ))}
-        </>
-      )}
-    </View>
-  );
+            ))}
+          </>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Statistics</Text>
-        <Text style={styles.headerSubtitle}>{baby.name}'s activity overview</Text>
+        <View>
+          <Text style={styles.headerTitle}>Statistics</Text>
+          <Text style={styles.headerSubtitle}>{baby.name}'s activity overview</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.exportButton} 
+          onPress={handleExportPdf}
+          disabled={exportingPdf}
+        >
+          {exportingPdf ? (
+            <ActivityIndicator size="small" color="#7C3AED" />
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={20} color="#7C3AED" />
+              <Text style={styles.exportButtonText}>Export</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Tab Selector */}
@@ -387,6 +509,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
@@ -400,6 +525,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  exportButtonText: {
+    color: '#7C3AED',
+    fontWeight: '600',
+    fontSize: 14,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -564,6 +703,92 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  percentileSection: {
+    marginBottom: 20,
+  },
+  sectionSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  percentileCards: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  percentileCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  percentileIndicator: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'baseline',
+    marginBottom: 12,
+  },
+  percentileNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  percentileSuffix: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  percentileLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  percentileValue: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  percentileStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  percentileGuide: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  guideTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  guideRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  guideDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  guideText: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   latestGrowth: {
     backgroundColor: '#FFFFFF',
