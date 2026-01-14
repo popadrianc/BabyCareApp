@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,11 @@ import { timelineApi, sleepApi, statsApi } from '../../src/services/api';
 import { TimelineEntry, SleepPrediction, DailyStats } from '../../src/types';
 import { formatTime, formatRelativeTime, formatDuration, calculateAge, getToday } from '../../src/utils/dateUtils';
 import { useRouter } from 'expo-router';
+import { 
+  requestNotificationPermissions, 
+  scheduleSleepReminder,
+  getNotificationSettings 
+} from '../../src/services/notifications';
 
 export default function HomeScreen() {
   const { user, isLoading: authLoading, isAuthenticated, login } = useAuth();
