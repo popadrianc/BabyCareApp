@@ -35,6 +35,35 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  // Setup notifications
+  useEffect(() => {
+    const setupNotifications = async () => {
+      if (Platform.OS !== 'web') {
+        const granted = await requestNotificationPermissions();
+        setNotificationsEnabled(granted);
+      }
+    };
+    setupNotifications();
+  }, []);
+
+  // Schedule sleep reminder when prediction changes
+  useEffect(() => {
+    const scheduleReminder = async () => {
+      if (prediction && baby && notificationsEnabled && Platform.OS !== 'web') {
+        const settings = await getNotificationSettings();
+        if (settings.sleepReminders) {
+          await scheduleSleepReminder(
+            baby.name,
+            new Date(prediction.next_nap_time),
+            prediction.wake_window_minutes
+          );
+        }
+      }
+    };
+    scheduleReminder();
+  }, [prediction, baby, notificationsEnabled]);
 
   const loadData = async () => {
     if (!baby) return;
