@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ export default function AddBabyScreen() {
   const [gender, setGender] = useState<string>('');
   const [photo, setPhoto] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const isSubmitting = useRef(false); // Prevent double submission
 
   if (!isAuthenticated) {
     return (
@@ -68,6 +69,11 @@ export default function AddBabyScreen() {
   };
 
   const handleSubmit = async () => {
+    // Prevent double submission
+    if (isSubmitting.current || loading) {
+      return;
+    }
+
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter baby\'s name');
       return;
@@ -78,7 +84,9 @@ export default function AddBabyScreen() {
       return;
     }
 
+    isSubmitting.current = true;
     setLoading(true);
+    
     try {
       await createBaby({
         name: name.trim(),
@@ -87,12 +95,12 @@ export default function AddBabyScreen() {
         photo: photo || undefined,
       });
       
-      Alert.alert('Success', `${name}'s profile has been created!`, [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Navigate immediately after success
+      router.replace('/(tabs)');
     } catch (error) {
       console.error('Failed to create baby:', error);
       Alert.alert('Error', 'Failed to create baby profile. Please try again.');
+      isSubmitting.current = false;
     } finally {
       setLoading(false);
     }
@@ -138,6 +146,7 @@ export default function AddBabyScreen() {
               onChangeText={setName}
               placeholder="Enter baby's name"
               placeholderTextColor="#9CA3AF"
+              editable={!loading}
             />
           </View>
 
@@ -151,6 +160,7 @@ export default function AddBabyScreen() {
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#9CA3AF"
               keyboardType="numbers-and-punctuation"
+              editable={!loading}
             />
             <Text style={styles.hint}>Format: 2024-01-15</Text>
           </View>
@@ -170,7 +180,8 @@ export default function AddBabyScreen() {
                     styles.genderOption,
                     gender === option.value && styles.genderOptionActive,
                   ]}
-                  onPress={() => setGender(option.value)}
+                  onPress={() => !loading && setGender(option.value)}
+                  disabled={loading}
                 >
                   <Ionicons
                     name={option.icon as any}
@@ -195,7 +206,7 @@ export default function AddBabyScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -336,6 +347,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#A78BFA',
   },
   submitButtonText: {
     color: '#FFFFFF',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 export default function EditBabyScreen() {
   const router = useRouter();
-  const { baby, updateBaby, deleteBaby } = useBaby();
+  const { baby, updateBaby, deleteBaby, refreshBabies } = useBaby();
   const { isAuthenticated, user } = useAuth();
   
   const [name, setName] = useState('');
@@ -28,6 +28,8 @@ export default function EditBabyScreen() {
   const [gender, setGender] = useState<string>('');
   const [photo, setPhoto] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const isSubmitting = useRef(false);
 
   useEffect(() => {
     if (baby) {
@@ -79,6 +81,8 @@ export default function EditBabyScreen() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting.current || loading) return;
+
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter baby\'s name');
       return;
@@ -89,7 +93,9 @@ export default function EditBabyScreen() {
       return;
     }
 
+    isSubmitting.current = true;
     setLoading(true);
+    
     try {
       await updateBaby(baby.baby_id, {
         name: name.trim(),
@@ -98,18 +104,19 @@ export default function EditBabyScreen() {
         photo: photo || undefined,
       });
       
-      Alert.alert('Success', 'Profile updated!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      router.replace('/(tabs)');
     } catch (error) {
       console.error('Failed to update baby:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
+      isSubmitting.current = false;
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = () => {
+    if (deleting) return;
+    
     Alert.alert(
       'Delete Profile',
       `Are you sure you want to delete ${baby.name}'s profile? This action cannot be undone and all tracking data will be lost.`,
@@ -119,20 +126,24 @@ export default function EditBabyScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            setLoading(true);
+            setDeleting(true);
             try {
               await deleteBaby(baby.baby_id);
+              // Force refresh and navigate
+              await refreshBabies();
               router.replace('/(tabs)');
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete profile');
-            } finally {
-              setLoading(false);
+              console.error('Failed to delete baby:', error);
+              Alert.alert('Error', 'Failed to delete profile. Please try again.');
+              setDeleting(false);
             }
           },
         },
       ]
     );
   };
+
+  const isDisabled = loading || deleting;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -141,7 +152,7 @@ export default function EditBabyScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.back()} disabled={isDisabled}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Baby</Text>
@@ -151,7 +162,7 @@ export default function EditBabyScreen() {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Photo */}
           <View style={styles.photoSection}>
-            <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
+            <TouchableOpacity style={styles.photoButton} onPress={pickImage} disabled={isDisabled}>
               {photo ? (
                 <View style={styles.photoPreview}>
                   <Ionicons name="checkmark" size={32} color="#FFFFFF" />
@@ -174,6 +185,7 @@ export default function EditBabyScreen() {
               onChangeText={setName}
               placeholder="Enter baby's name"
               placeholderTextColor="#9CA3AF"
+              editable={!isDisabled}
             />
           </View>
 
@@ -187,6 +199,7 @@ export default function EditBabyScreen() {
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#9CA3AF"
               keyboardType="numbers-and-punctuation"
+              editable={!isDisabled}
             />
             <Text style={styles.hint}>Format: 2024-01-15</Text>
           </View>
@@ -207,6 +220,7 @@ export default function EditBabyScreen() {
                     gender === option.value && styles.genderOptionActive,
                   ]}
                   onPress={() => setGender(option.value)}
+                  disabled={isDisabled}
                 >
                   <Ionicons
                     name={option.icon as any}
@@ -228,9 +242,19 @@ export default function EditBabyScreen() {
 
           {/* Delete Button (owner only) */}
           {isOwner && (
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              <Text style={styles.deleteButtonText}>Delete Profile</Text>
+            <TouchableOpacity 
+              style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]} 
+              onPress={handleDelete}
+              disabled={isDisabled}
+            >
+              {deleting ? (
+                <ActivityIndicator color="#EF4444" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  <Text style={styles.deleteButtonText}>Delete Profile</Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
 
@@ -239,9 +263,9 @@ export default function EditBabyScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[styles.submitButton, isDisabled && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={isDisabled}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -378,6 +402,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 8,
   },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
   deleteButtonText: {
     fontSize: 14,
     fontWeight: '500',
@@ -393,6 +420,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#A78BFA',
   },
   submitButtonText: {
     color: '#FFFFFF',
