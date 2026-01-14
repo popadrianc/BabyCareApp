@@ -256,6 +256,15 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#7C3AED" />
+            <Text style={styles.actionButtonText}>Notification Settings</Text>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color="#EF4444" />
             <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>Logout</Text>
