@@ -10,31 +10,47 @@ export interface NotificationSettings {
   diaperReminders: boolean;
 }
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Configure notification behavior - only on native platforms
+let notificationHandlerSet = false;
+
+export function setupNotificationHandler() {
+  if (notificationHandlerSet || Platform.OS === 'web') return;
+  
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+    notificationHandlerSet = true;
+  } catch (error) {
+    console.log('Failed to setup notification handler:', error);
+  }
+}
 
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') {
-    return false; // Web notifications handled differently
+    return false;
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+  try {
+    setupNotificationHandler();
+    
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    return finalStatus === 'granted';
+  } catch (error) {
+    console.log('Failed to request notification permissions:', error);
+    return false;
   }
-
-  return finalStatus === 'granted';
 }
 
 export async function getNotificationSettings(): Promise<NotificationSettings> {
@@ -44,7 +60,7 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
       return JSON.parse(stored);
     }
   } catch (error) {
-    console.error('Failed to get notification settings:', error);
+    console.log('Failed to get notification settings:', error);
   }
   
   return {
@@ -58,7 +74,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
   try {
     await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
-    console.error('Failed to save notification settings:', error);
+    console.log('Failed to save notification settings:', error);
   }
 }
 
@@ -67,6 +83,8 @@ export async function scheduleSleepReminder(
   nextNapTime: Date,
   wakeWindowMinutes: number
 ): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  
   try {
     const settings = await getNotificationSettings();
     if (!settings.sleepReminders) return null;
@@ -82,10 +100,6 @@ export async function scheduleSleepReminder(
       return null;
     }
 
-    const trigger = {
-      date: reminderTime,
-    };
-
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Sleep Reminder',
@@ -93,17 +107,21 @@ export async function scheduleSleepReminder(
         data: { type: 'sleep_reminder' },
         sound: true,
       },
-      trigger,
+      trigger: {
+        date: reminderTime,
+      },
     });
 
     return id;
   } catch (error) {
-    console.error('Failed to schedule sleep reminder:', error);
+    console.log('Failed to schedule sleep reminder:', error);
     return null;
   }
 }
 
 export async function cancelSleepReminders(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
@@ -112,7 +130,7 @@ export async function cancelSleepReminders(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Failed to cancel sleep reminders:', error);
+    console.log('Failed to cancel sleep reminders:', error);
   }
 }
 
@@ -120,6 +138,8 @@ export async function scheduleFeedingReminder(
   babyName: string,
   intervalHours: number = 3
 ): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  
   try {
     const settings = await getNotificationSettings();
     if (!settings.feedingReminders) return null;
@@ -143,12 +163,14 @@ export async function scheduleFeedingReminder(
 
     return id;
   } catch (error) {
-    console.error('Failed to schedule feeding reminder:', error);
+    console.log('Failed to schedule feeding reminder:', error);
     return null;
   }
 }
 
 export async function cancelFeedingReminders(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const notification of scheduled) {
@@ -157,21 +179,34 @@ export async function cancelFeedingReminders(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Failed to cancel feeding reminders:', error);
+    console.log('Failed to cancel feeding reminders:', error);
   }
 }
 
 export async function sendTestNotification(): Promise<void> {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Test Notification',
-      body: 'Baby Day Book notifications are working!',
-      sound: true,
-    },
-    trigger: null, // Send immediately
-  });
+  if (Platform.OS === 'web') return;
+  
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Test Notification',
+        body: 'Baby Day Book notifications are working!',
+        sound: true,
+      },
+      trigger: null, // Send immediately
+    });
+  } catch (error) {
+    console.log('Failed to send test notification:', error);
+    throw error;
+  }
 }
 
 export async function cancelAllNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  if (Platform.OS === 'web') return;
+  
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.log('Failed to cancel all notifications:', error);
+  }
 }
