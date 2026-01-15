@@ -80,3 +80,7 @@ android-sdk/
 
 # NOTE: .env files ARE INCLUDED for easier self-hosting setup
 # IMPORTANT: Do not add .env exclusions here - they are needed in the repo
+-e 
+# Environment files
+*.env
+*.env.*
