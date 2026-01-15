@@ -81,3 +81,7 @@ android-sdk/
 
 # Keep environment files - required for deployment
 # .env files are auto-managed by Emergent during deployment
+-e 
+# Environment files
+*.env
+*.env.*
