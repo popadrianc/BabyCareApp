@@ -30,8 +30,7 @@ next-env.d.ts
 dist/
 dist
 
-# Environment files (comprehensive coverage)
-
+# Credentials (but NOT .env files)
 *token.json*
 *credentials.json*
 
@@ -78,14 +77,3 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/
-
-# Keep environment files - required for deployment
-# .env files are auto-managed by Emergent during deployment
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
