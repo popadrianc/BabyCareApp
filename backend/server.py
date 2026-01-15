@@ -957,11 +957,26 @@ async def get_pending_invites(request: Request):
         {"_id": 0}
     ).to_list(100)
     
+    if not invites:
+        return []
+    
+    # Collect all unique IDs for batch query
+    baby_ids = list(set(invite["baby_id"] for invite in invites))
+    inviter_ids = list(set(invite["inviter_user_id"] for invite in invites))
+    
+    # Fetch all babies and inviters in bulk
+    babies_list = await db.babies.find({"baby_id": {"$in": baby_ids}}, {"_id": 0}).to_list(100)
+    inviters_list = await db.users.find({"user_id": {"$in": inviter_ids}}, {"_id": 0}).to_list(100)
+    
+    # Create lookup dictionaries
+    babies = {b["baby_id"]: b for b in babies_list}
+    inviters = {u["user_id"]: u for u in inviters_list}
+    
     # Enrich with baby and inviter info
     enriched = []
     for invite in invites:
-        baby = await db.babies.find_one({"baby_id": invite["baby_id"]}, {"_id": 0})
-        inviter = await db.users.find_one({"user_id": invite["inviter_user_id"]}, {"_id": 0})
+        baby = babies.get(invite["baby_id"])
+        inviter = inviters.get(invite["inviter_user_id"])
         
         enriched.append({
             **invite,
