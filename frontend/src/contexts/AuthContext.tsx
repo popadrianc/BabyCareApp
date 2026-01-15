@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async () => {
     const redirectUrl = Platform.OS === 'web'
-      ? `${BACKEND_URL}/`
+      ? (typeof window !== 'undefined' ? window.location.origin + '/' : '/')
       : Linking.createURL('/');
     
     const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
