@@ -7,7 +7,7 @@ import requests
 import json
 from datetime import datetime, timezone
 
-BACKEND_URL = "https://babycare-tracker.preview.emergentagent.com/api"
+BACKEND_URL = "https://babytrak.preview.emergentagent.com/api"
 SESSION_TOKEN = "test_session_1768384525697"
 
 def make_request(method, endpoint, data=None):

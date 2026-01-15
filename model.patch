@@ -33,9 +33,9 @@ index 0000000..117417e
 --- /dev/null
 +++ b/frontend/.env
 @@ -0,0 +1,5 @@
-+EXPO_TUNNEL_SUBDOMAIN=babycare-tracker
-+EXPO_PACKAGER_HOSTNAME=https://babycare-tracker.preview.emergentagent.com
-+EXPO_PUBLIC_BACKEND_URL=https://babycare-tracker.preview.emergentagent.com
++EXPO_TUNNEL_SUBDOMAIN=babytrak
++EXPO_PACKAGER_HOSTNAME=https://babytrak.preview.emergentagent.com
++EXPO_PUBLIC_BACKEND_URL=https://babytrak.preview.emergentagent.com
 +EXPO_USE_FAST_RESOLVER="1"
 +METRO_CACHE_ROOT=/app/frontend/.metro-cache
 \ No newline at end of file
@@ -74,7 +74,7 @@ index c84a09d..e69de29 100644
 ----+import json
 ----+from datetime import datetime, timezone
 ----+
-----+BACKEND_URL = "https://babycare-tracker.preview.emergentagent.com/api"
+----+BACKEND_URL = "https://babytrak.preview.emergentagent.com/api"
 ----+SESSION_TOKEN = "test_session_1768384525697"
 ----+
 ----+def make_request(method, endpoint, data=None):
@@ -189,7 +189,7 @@ index c84a09d..e69de29 100644
 ----+import json
 ----+from datetime import datetime, timezone
 ----+
-----+BACKEND_URL = "https://babycare-tracker.preview.emergentagent.com/api"
+----+BACKEND_URL = "https://babytrak.preview.emergentagent.com/api"
 ----+SESSION_TOKEN = "test_session_1768384525697"
 ----+BABY_ID = "baby_598fcbc4e9cb"
 ----+
