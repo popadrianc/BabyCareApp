@@ -7,16 +7,6 @@
 <p align="center">
   <strong>Track your baby's feeding, sleep, diapers & growth with ease</strong>
 </p>
-
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
-  <a href="#tech-stack">Tech Stack</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#self-hosting">Self-Hosting</a> •
-  <a href="#api-documentation">API</a>
-</p>
-
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20Web-blue" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
