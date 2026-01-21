@@ -87,18 +87,6 @@ Whether you're a new parent wanting to establish routines, or caregivers needing
 
 ---
 
-## 📱 Screenshots
-
-<p align="center">
-  <i>Coming soon - Screenshots of the app in action</i>
-</p>
-
-| Home Screen | Track Activity | Statistics | Profile |
-|:-----------:|:--------------:|:----------:|:-------:|
-| Timeline view | Quick logging | Daily/Weekly stats | Baby & user info |
-
----
-
 ## 🛠 Tech Stack
 
 ### Frontend
