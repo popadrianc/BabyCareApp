@@ -138,7 +138,7 @@ Whether you're a new parent wanting to establish routines, or caregivers needing
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/baby-day-book.git
+   git clone https://github.com/popadrianc/BabyCareApp.git
    cd baby-day-book
    ```
 
