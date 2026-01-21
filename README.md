@@ -1,4 +1,4 @@
-<p align="center">
+<<p align="center">
   <img src="https://img.icons8.com/color/96/baby.png" alt="Baby Day Book Logo" width="96" height="96">
 </p>
 
@@ -7,10 +7,18 @@
 <p align="center">
   <strong>Track your baby's feeding, sleep, diapers & growth with ease</strong>
 </p>
+
+<p align="center">
+  <a href="https://github.com/popadrianc/BabyCareApp/blob/2af91da95bb7f7479756ec733042376875570653/README.md#-features">Features</a> •
+  <a href="https://github.com/popadrianc/BabyCareApp/blob/2af91da95bb7f7479756ec733042376875570653/README.md#-tech-stack">Tech Stack</a> •
+  <a href="https://github.com/popadrianc/BabyCareApp/blob/2af91da95bb7f7479756ec733042376875570653/README.md#-getting-started">Getting Started</a> •
+  <a href="https://github.com/popadrianc/BabyCareApp/blob/2af91da95bb7f7479756ec733042376875570653/README.md#-self-hosting">Self-Hosting</a> •
+  <a href="https://github.com/popadrianc/BabyCareApp/blob/2af91da95bb7f7479756ec733042376875570653/README.md#-api-documentation">API</a>
+</p>
+
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20Web-blue" alt="Platform">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/React%20Native-Expo-purple" alt="Expo">
+   <img src="https://img.shields.io/badge/React%20Native-Expo-purple" alt="Expo">
   <img src="https://img.shields.io/badge/Backend-FastAPI-teal" alt="FastAPI">
 </p>
 
@@ -287,12 +295,6 @@ Contributions are welcome! Feel free to:
 3. Commit changes (`git commit -m 'Add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
